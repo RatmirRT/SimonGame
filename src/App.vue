@@ -2,29 +2,26 @@
   <div class="container">
     <modal-dialog v-if="showModal">
       <game-result :score="currentScore" :bestScore="bestScore"></game-result>
-      <difficulty-level 
-        v-model:difficultyLevel="currentDifficult" 
-        :disableSelect = "isStarted"
-      >
+      <difficulty-level v-model:difficultyLevel="currentDifficult" :disableSelect="isStarted">
       </difficulty-level>
       <button class="playButton" @click="startGame">Играть</button>
     </modal-dialog>
-    <div class="play_zone" 
-      :class="{ 
-        'large': currentDifficult === 3 
-      }" 
+    <div
+      class="play_zone"
+      :class="{
+        large: currentDifficult === 3
+      }"
     >
-      <button 
+      <button
         class="game_btn"
-        v-for="button, key in buttonCount" 
+        v-for="(button, key) in buttons"
         :class="{
-          'active': button.isActive
+          active: button.isActive
         }"
         :key="key"
         @click="inputPattern(key)"
         :disabled="!playerTurn && isStarted"
-      >
-      </button>
+      ></button>
     </div>
     <div class="score">
       <h2>Счет: {{ currentScore }}</h2>
@@ -35,14 +32,13 @@
 <script lang="ts">
 import { defineComponent, ref, onMounted, watch, computed } from 'vue'
 import DifficultyLevel from '@/components/DifficultyLevelSelect.vue'
-import ModalDialog from '@/components/ModalDialog.vue';
-import GameResult from '@/components/GameResult.vue';
+import ModalDialog from '@/components/ModalDialog.vue'
+import GameResult from '@/components/GameResult.vue'
 import importedSounds from '@/assets/index'
 
 export default defineComponent({
   components: { DifficultyLevel, ModalDialog, GameResult },
-  setup () {
-
+  setup() {
     const showModal = ref(true)
     const isStarted = ref(false) // обозначение старта игры
     const playerTurn = ref(false) // обозначение очереди игрока
@@ -52,10 +48,10 @@ export default defineComponent({
     let currentPattern: number[] = [] // необходимый паттерн нажатия
     const bestScore = ref(0)
     const round = ref(1) // текущий раунд
-    let buttonCount = ref<{ isActive: boolean }[]>([]) // кнопки на игровом поле
+    let buttons = ref<{ isActive: boolean }[]>([]) // кнопки на игровом поле
 
-    // подгрузка фудио файлов 
-    const sounds = Array.from({length: 9}, (value, i) => {
+    // подгрузка фудио файлов
+    const sounds = Array.from({ length: 9 }, (value, i) => {
       return new Audio(importedSounds[i])
     })
 
@@ -66,29 +62,32 @@ export default defineComponent({
     // отслеживаем сосотояние игры, если false то обнуляем значения
     watch(isStarted, (newVal) => {
       if (!newVal) {
-        round.value = 1
         checkScore()
-        playerTurn.value = false
         playerPattern = []
+
+        round.value = 1
+
+        playerTurn.value = false
         showModal.value = true
       }
     })
 
     // скорость воспроизведения игры относительно сложности
-    const speed = computed(()=> {
-      const currentSpeed = (currentDifficult.value === 1 ) ? 1200 : (currentDifficult.value === 2 ) ? 800 : 400
+    const speed = computed(() => {
+      const currentSpeed =
+        currentDifficult.value === 1 ? 1200 : currentDifficult.value === 2 ? 800 : 400
       return currentSpeed
     })
 
     // если локально хранятся данные о Счете то подгружаем их
     const checkLocalScore = () => {
       const localScore = Number(localStorage.getItem('bestScore'))
-      bestScore.value = (localScore) ? localScore : 0
+      bestScore.value = localScore ? localScore : 0
     }
 
     // если локальные значения счета меньше того что храниться в текущей сессии то сохраняем
     const checkScore = () => {
-      if (currentScore.value > bestScore.value ) {
+      if (currentScore.value > bestScore.value) {
         bestScore.value = currentScore.value
         localStorage.setItem('bestScore', bestScore.value.toString())
       }
@@ -96,18 +95,18 @@ export default defineComponent({
 
     // кол-во кнопок относительно сложности
     const generateButtons = () => {
-      const count = (currentDifficult.value === 1 ) ? 4 : (currentDifficult.value === 2 ) ? 6 : 9
-      const newButtons = Array.from({ length: count }, () => ({
+      const buttonsCount = currentDifficult.value === 1 ? 4 : currentDifficult.value === 2 ? 6 : 9
+      const newButtons = Array.from({ length: buttonsCount }, () => ({
         isActive: false
       }))
-      buttonCount.value = newButtons
+      buttons.value = newButtons
     }
 
     // паттерн на текущий раунд
     const generatePattern = () => {
       let patternArray = []
       for (let i = 0; i < round.value; i++) {
-        patternArray.push(Math.floor(Math.random()*buttonCount.value.length))
+        patternArray.push(Math.floor(Math.random() * buttons.value.length))
       }
       return patternArray
     }
@@ -116,7 +115,7 @@ export default defineComponent({
     const wait = async (ms: number) => {
       return await new Promise<void>((resolve) => {
         setTimeout(() => {
-          resolve() 
+          resolve()
         }, ms)
       })
     }
@@ -124,16 +123,12 @@ export default defineComponent({
     // запуск паттерна игры
     const startRound = async () => {
       currentPattern = generatePattern()
-      await wait(200)
+      await wait(1000)
       for (const element of currentPattern) {
-        buttonCount.value[element].isActive = true // подсветка кнопки
+        buttons.value[element].isActive = true // подсветка кнопки
         sounds[element].play()
-        await new Promise<void>((resolve) => {
-          setTimeout(() => {
-            buttonCount.value[element].isActive = false
-            resolve() 
-          }, speed.value)
-        })
+        await wait(speed.value)
+        buttons.value[element].isActive = false
         await wait(200)
       }
       playerTurn.value = true
@@ -145,11 +140,13 @@ export default defineComponent({
       sounds[value].play()
       playerPattern.push(value)
       playerPattern.forEach((item, key) => {
-        if (item !== currentPattern[key]) { // если ошибка в паттерне то заканчиваем игру
+        if (item !== currentPattern[key]) {
+          // если ошибка в паттерне то заканчиваем игру
           isStarted.value = false
           return
         }
-        if (key === round.value - 1) { // если раунд проиден то идет следующий
+        if (key === round.value - 1) {
+          // если раунд проиден то идет следующий
           nextRound()
         }
       })
@@ -161,20 +158,20 @@ export default defineComponent({
       playerTurn.value = false
       playerPattern = []
       startRound()
-      
     }
 
     const startGame = () => {
       round.value = 1
-      showModal.value = false
       currentScore.value = 0
+
+      showModal.value = false
       playerTurn.value = false
       isStarted.value = true
       playerPattern = []
       startRound()
     }
 
-    onMounted(()=> {
+    onMounted(() => {
       checkLocalScore()
       generateButtons()
     })
@@ -185,7 +182,7 @@ export default defineComponent({
       isStarted,
       bestScore,
       currentScore,
-      buttonCount,
+      buttons,
       currentDifficult,
       startGame,
       inputPattern
@@ -218,7 +215,7 @@ export default defineComponent({
   color: #fff;
   border: none;
   padding: 10px;
-  font-size: 18px; 
+  font-size: 18px;
   font-weight: 700;
   border-radius: 10px;
   cursor: pointer;
@@ -243,11 +240,12 @@ export default defineComponent({
 }
 
 .play_zone.large .game_btn {
-  width: calc(100%/3);
-  padding: calc(100%/6) 0;
+  width: calc(100% / 3);
+  padding: calc(100% / 6) 0;
 }
 
-.play_zone .game_btn:active:not([disabled]), .play_zone .game_btn.active {
+.play_zone .game_btn:active:not([disabled]),
+.play_zone .game_btn.active {
   opacity: 1;
 }
 
@@ -299,7 +297,7 @@ export default defineComponent({
   margin-bottom: 15px;
 }
 
-@media screen and ( max-width: 900px) {
+@media screen and (max-width: 900px) {
   .container {
     width: calc(100% - 40px);
     padding: 20px;
